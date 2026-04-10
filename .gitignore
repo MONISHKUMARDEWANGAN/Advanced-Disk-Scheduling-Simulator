@@ -1,0 +1,60 @@
+# ==============================
+# 🔹 C / Build Files
+# ==============================
+*.o
+*.out
+*.exe
+*.a
+*.so
+*.dll
+
+# Binaries
+core/disk_scheduler
+disk_scheduler
+disk_scheduler.exe
+
+# ==============================
+# 🔹 Python
+# ==============================
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments (if used later)
+venv/
+.env/
+
+# Output directory (auto-generated)
+controller/output/
+
+# ==============================
+# 🔹 Logs & Temp Files
+# ==============================
+*.log
+*.tmp
+*.cache
+
+# ==============================
+# 🔹 OS Files
+# ==============================
+.DS_Store
+Thumbs.db
+
+# ==============================
+# 🔹 IDE / Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+
+# ==============================
+# 🔹 Environment variables
+# ==============================
+.env
+
+# ==============================
+# 🔹 Frontend (future-proof)
+# ==============================
+node_modules/
+dist/
+build/
