@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Disk Scheduling Simulator · CSE-316</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-dot"></div>
+    DISK_SCHEDULING_SIMULATOR
+  </div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-pill">CSE-316 · OS · CA2</div>
+  <div class="topbar-status">
+    <span id="top-msg">// idle — configure and run</span>
+  </div>
+</div>
+
+<div class="body">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+
+  <div class="card">
+    <div class="card-hd"><div class="hd-dot"></div>Disk Configuration</div>
+    <div class="card-body">
+      <div class="field">
+        <label class="lbl">Disk Size (cylinders)</label>
+        <input type="number" id="diskSize" value="200" min="10" max="100000"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Initial Head Position</label>
+        <input type="number" id="headPos" value="53" min="0"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Request Queue</label>
+        <input type="text" id="requests" value="98,183,37,122,14,124,65,67" placeholder="comma-separated"/>
+        <div class="hint">// classic textbook example loaded</div>
+      </div>
+      <div class="field">
+        <label class="lbl">SCAN / C-SCAN Direction</label>
+        <select id="direction">
+          <option value="right">→ Right  (increasing)</option>
+          <option value="left">← Left   (decreasing)</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost" style="padding:6px;font-size:10px;margin-top:-4px" onclick="genRandom()">
+        ⟳ Generate random requests
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="hd-dot"></div>Algorithms</div>
+    <div class="card-body">
+      <div class="algo-grid">
+        <div class="atog on" style="--c:var(--fcfs)" data-a="FCFS"  onclick="togAlgo(this)"><div class="pip"></div><span>FCFS</span></div>
+        <div class="atog on" style="--c:var(--sstf)" data-a="SSTF"  onclick="togAlgo(this)"><div class="pip"></div><span>SSTF</span></div>
+        <div class="atog on" style="--c:var(--scan)" data-a="SCAN"  onclick="togAlgo(this)"><div class="pip"></div><span>SCAN</span></div>
+        <div class="atog on" style="--c:var(--cscan)"data-a="C-SCAN"onclick="togAlgo(this)"><div class="pip"></div><span>C-SCAN</span></div>
+        <div class="atog on" style="--c:var(--look)" data-a="LOOK"  onclick="togAlgo(this)"><div class="pip"></div><span>LOOK ✦</span></div>
+      </div>
+      <div class="hint" style="margin-top:8px">✦ LOOK = SCAN without end-of-disk travel</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="hd-dot"></div>Animation</div>
+    <div class="card-body">
+      <label class="lbl">Speed</label>
+      <input type="range" id="speed" min="1" max="10" value="5"/>
+      <div style="display:flex;justify-content:space-between;margin-top:3px">
+        <span style="font-size:9px;color:var(--text4)">slow</span>
+        <span style="font-size:9px;color:var(--text4)">fast</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="runBtn" onclick="runSim()">▶ Run Simulation</button>
+
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="stepMode()">⏱ Step Mode</button>
+    <button class="btn btn-ghost" onclick="exportCSV()">↓ CSV</button>
+    <button class="btn btn-danger" onclick="resetAll()">✕</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="hd-dot"></div>Algorithm Info</div>
+    <div class="card-body" id="algo-info-panel">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px" id="info-tabs">
+        <button class="btn btn-ghost" style="padding:4px 9px;font-size:9px;width:auto;font-family:var(--mono)" onclick="showInfo('fcfs',this)">FCFS</button>
+        <button class="btn btn-ghost" style="padding:4px 9px;font-size:9px;width:auto;font-family:var(--mono)" onclick="showInfo('sstf',this)">SSTF</button>
+        <button class="btn btn-ghost" style="padding:4px 9px;font-size:9px;width:auto;font-family:var(--mono)" onclick="showInfo('scan',this)">SCAN</button>
+        <button class="btn btn-ghost" style="padding:4px 9px;font-size:9px;width:auto;font-family:var(--mono)" onclick="showInfo('cscan',this)">C-SCAN</button>
+        <button class="btn btn-ghost" style="padding:4px 9px;font-size:9px;width:auto;font-family:var(--mono)" onclick="showInfo('look',this)">LOOK</button>
+      </div>
+      <div id="info-fcfs"  class="info-box" style="font-size:11px;color:var(--text2);line-height:1.7"><strong style="color:var(--fcfs)">FCFS</strong> — Requests served in arrival order. Zero reordering. Simplest possible strategy but leads to the <em>convoy effect</em> — large zig-zag head movement across the disk.</div>
+      <div id="info-sstf"  class="info-box" style="font-size:11px;color:var(--text2);line-height:1.7;display:none"><strong style="color:var(--sstf)">SSTF</strong> — Greedy: always pick the nearest unserved cylinder. Minimises individual jumps but can cause <em>starvation</em> for far requests. This simulator implements <strong>request aging</strong> to prevent it.</div>
+      <div id="info-scan"  class="info-box" style="font-size:11px;color:var(--text2);line-height:1.7;display:none"><strong style="color:var(--scan)">SCAN</strong> — Elevator algorithm. Head sweeps one direction, serves all requests, hits disk end, then reverses. Fairer than SSTF. Base of Linux CFQ scheduler.</div>
+      <div id="info-cscan" class="info-box" style="font-size:11px;color:var(--text2);line-height:1.7;display:none"><strong style="color:var(--cscan)">C-SCAN</strong> — Like SCAN but services only one direction. On reaching the end, jumps back to cylinder 0. Provides the most <em>uniform wait time</em> across all cylinders.</div>
+      <div id="info-look"  class="info-box" style="font-size:11px;color:var(--text2);line-height:1.7;display:none"><strong style="color:var(--look)">LOOK</strong> — Optimised SCAN. Head reverses at the <em>last actual request</em>, not at the disk boundary. Eliminates wasted travel to disk ends — more efficient in practice.</div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+  <!-- Metric cards -->
+  <div class="metrics" id="metrics-row">
+    <div class="mcard" style="--c:var(--fcfs);--glow:var(--glow-fcfs)" id="mc-FCFS">
+      <div class="mcard-rank" id="mr-FCFS"></div>
+      <div class="mcard-val"  id="mv-FCFS">—</div>
+      <div class="mcard-name">FCFS</div>
+      <div class="mcard-sub"  id="ms-FCFS">seek distance</div>
+    </div>
+    <div class="mcard" style="--c:var(--sstf);--glow:var(--glow-sstf)" id="mc-SSTF">
+      <div class="mcard-rank" id="mr-SSTF"></div>
+      <div class="mcard-val"  id="mv-SSTF">—</div>
+      <div class="mcard-name">SSTF</div>
+      <div class="mcard-sub"  id="ms-SSTF">seek distance</div>
+    </div>
+    <div class="mcard" style="--c:var(--scan);--glow:var(--glow-scan)" id="mc-SCAN">
+      <div class="mcard-rank" id="mr-SCAN"></div>
+      <div class="mcard-val"  id="mv-SCAN">—</div>
+      <div class="mcard-name">SCAN</div>
+      <div class="mcard-sub"  id="ms-SCAN">seek distance</div>
+    </div>
+    <div class="mcard" style="--c:var(--cscan);--glow:var(--glow-cscan)" id="mc-C-SCAN">
+      <div class="mcard-rank" id="mr-C-SCAN"></div>
+      <div class="mcard-val"  id="mv-C-SCAN">—</div>
+      <div class="mcard-name">C-SCAN</div>
+      <div class="mcard-sub"  id="ms-C-SCAN">seek distance</div>
+    </div>
+    <div class="mcard" style="--c:var(--look);--glow:var(--glow-look)" id="mc-LOOK">
+      <div class="mcard-rank" id="mr-LOOK"></div>
+      <div class="mcard-val"  id="mv-LOOK">—</div>
+      <div class="mcard-name">LOOK</div>
+      <div class="mcard-sub"  id="ms-LOOK">seek distance</div>
+    </div>
+  </div>
+
+  <!-- Visualization -->
+  <div class="card">
+    <div class="card-hd"><div class="hd-dot"></div>Seek Order Visualization &nbsp;<span id="viz-mode-label" style="font-size:9px;color:var(--text4)">&nbsp;</span></div>
+    <div class="card-body" style="padding:10px">
+      <div class="viz-wrap">
+        <canvas id="seekCanvas" height="420"></canvas>
+        <div class="viz-ctrl">
+          <div class="legend-row" id="legend-row"></div>
+          <div class="viz-btns">
+            <div class="ico-btn" title="Play/Pause" id="playBtn" onclick="togglePlay()">▶</div>
+            <div class="ico-btn" title="Replay" onclick="replay()">↺</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step player -->
+    <div class="step-player" id="step-player">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <select id="step-algo-sel" class="step-algo-select" style="background:var(--bg4);border:1px solid var(--border1);color:var(--text1);border-radius:var(--r4);padding:5px 8px;outline:none;font-size:11px"></select>
+        <div class="step-info" id="step-info" style="margin-bottom:0">
+          <div class="step-stat"><div class="sv" id="sv-from">—</div><div class="sl">from</div></div>
+          <div style="color:var(--text4);font-size:18px">→</div>
+          <div class="step-stat"><div class="sv" id="sv-to">—</div><div class="sl">to</div></div>
+          <div class="step-stat"><div class="sv" id="sv-dist">—</div><div class="sl">distance</div></div>
+          <div class="step-stat"><div class="sv" id="sv-cum">—</div><div class="sl">cumulative</div></div>
+          <div class="step-stat"><div class="sv" id="sv-step">0/0</div><div class="sl">step</div></div>
+        </div>
+        <div class="step-controls" style="margin-left:auto">
+          <button class="btn btn-ghost" onclick="stepNav(-1)">◀ Prev</button>
+          <button class="btn btn-ghost" onclick="stepNav(1)">Next ▶</button>
+          <button class="btn btn-ghost" onclick="stepAuto()" id="stepAutoBtn">Auto ▶</button>
+        </div>
+      </div>
+      <div class="step-progress"><div class="step-bar" id="step-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+ 
+  <!-- Tabs -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tbn on" onclick="swTab('seq',this)">Seek Sequences</button>
+      <button class="tbn"    onclick="swTab('cmp',this)">Comparison</button>
+      <button class="tbn"    onclick="swTab('tbl',this)">Data Table</button>
+      <button class="tbn"    onclick="swTab('hm', this)">Access Heatmap</button>
+    </div>
+
+    <div class="tpane on" id="tp-seq">
+      <div id="seq-content"><div class="empty"><div class="ei">◌</div>Run simulation to see seek sequences</div></div>
+    </div>
+
+    <div class="tpane" id="tp-cmp">
+      <div id="cmp-content"><div class="empty"><div class="ei">◌</div>Run simulation to see comparison</div></div>
+    </div>
+
+    <div class="tpane" id="tp-tbl">
+      <div id="tbl-content"><div class="empty"><div class="ei">◌</div>Run simulation to see data table</div></div>
+    </div>
+
+    <div class="tpane" id="tp-hm">
+      <div id="hm-content"><div class="empty"><div class="ei">◌</div>Run simulation to see access heatmap</div></div>
+    </div>
+
+  </div>
+
+</main>
+</div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
